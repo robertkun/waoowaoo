@@ -444,6 +444,15 @@
     }
   },
   {
+    "apiType": "video",
+    "provider": "runninghub",
+    "modelId": "rhart-video-v3.1-fast",
+    "pricing": {
+      "mode": "flat",
+      "flatAmount": 0.2
+    }
+  },
+  {
     "apiType": "image",
     "provider": "google",
     "modelId": "gemini-3-pro-image-preview",

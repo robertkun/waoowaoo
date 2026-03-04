@@ -500,6 +500,14 @@
   },
   {
     "modelType": "video",
+    "provider": "runninghub",
+    "modelId": "rhart-video-v3.1-fast",
+    "capabilities": {
+      "video": {}
+    }
+  },
+  {
+    "modelType": "video",
     "provider": "google",
     "modelId": "veo-3.1-generate-preview",
     "capabilities": {

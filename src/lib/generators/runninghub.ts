@@ -260,7 +260,16 @@ export class RunningHubImageGenerator extends BaseImageGenerator {
   }
 }
 
-const RUNNINGHUB_VIDEO_ENDPOINT = 'rhart-video-s-official/image-to-video-realistic'
+/** modelId → 接口路径（无前导 /openapi/v2/） */
+const RUNNINGHUB_VIDEO_ENDPOINT_MAP: Record<string, string> = {
+  'rhart-video-s-official': 'rhart-video-s-official/image-to-video-realistic',
+  'rhart-video-v3.1-fast': 'rhart-video-v3.1-fast/image-to-video',
+}
+
+function getRunningHubVideoEndpoint(modelId?: string): string {
+  const id = (modelId || '').trim()
+  return RUNNINGHUB_VIDEO_ENDPOINT_MAP[id] ?? 'rhart-video-s-official/image-to-video-realistic'
+}
 
 function normalizeVideoDuration(raw?: string | number): string {
   if (raw === undefined || raw === null) return '4'
@@ -269,9 +278,22 @@ function normalizeVideoDuration(raw?: string | number): string {
   return '4'
 }
 
+function normalizeVideoAspectRatio(raw?: string): string {
+  const s = (raw || '').trim()
+  if (s !== '') return s
+  return '16:9'
+}
+
+function normalizeVideoResolution(raw?: string): string {
+  const s = (raw || '').trim().toLowerCase()
+  if (s === '720p' || s === '1080p' || s === '540p') return s
+  return '720p'
+}
+
 export class RunningHubVideoGenerator extends BaseVideoGenerator {
   protected async doGenerate(params: VideoGenerateParams): Promise<GenerateResult> {
     const { userId, imageUrl, prompt = '', options = {} } = params
+    const modelId = (options.modelId as string | undefined) || 'rhart-video-s-official'
     const { apiKey } = await getProviderConfig(userId, 'runninghub')
     const cleanedKey = apiKey.replace(/^Bearer\s+/i, '')
     const logger = createScopedLogger({
@@ -282,14 +304,22 @@ export class RunningHubVideoGenerator extends BaseVideoGenerator {
     const base64 = await imageUrlToBase64(imageUrl)
     const uploadedUrl = await uploadBase64ToRunninghub(base64, cleanedKey)
 
-    const duration = normalizeVideoDuration(options.duration as string | number | undefined)
+    const endpoint = getRunningHubVideoEndpoint(modelId)
+    const createTaskUrl = `${RUNNINGHUB_BASE_URL}/openapi/v2/${endpoint}`
 
-    const createTaskUrl = `${RUNNINGHUB_BASE_URL}/openapi/v2/${RUNNINGHUB_VIDEO_ENDPOINT}`
-    const body = {
-      prompt: prompt.trim() || '',
-      duration,
-      imageUrl: uploadedUrl,
-    }
+    const isV31Fast = modelId === 'rhart-video-v3.1-fast'
+    const body = isV31Fast
+      ? {
+          prompt: prompt.trim() || '',
+          aspectRatio: normalizeVideoAspectRatio(options.aspectRatio as string | undefined),
+          imageUrls: [uploadedUrl],
+          resolution: normalizeVideoResolution(options.resolution as string | undefined),
+        }
+      : {
+          prompt: prompt.trim() || '',
+          duration: normalizeVideoDuration(options.duration as string | number | undefined),
+          imageUrl: uploadedUrl,
+        }
     logger.info({
       message: 'RunningHub 图生视频请求',
       details: { url: createTaskUrl },
