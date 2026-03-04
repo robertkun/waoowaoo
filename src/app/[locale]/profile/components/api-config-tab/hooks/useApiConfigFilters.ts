@@ -23,6 +23,7 @@ const MODEL_PROVIDER_KEYS = [
   'minimax',
   'vidu',
   'fal',
+  'runninghub',
   'gemini-compatible',
   'openai-compatible',
 ]

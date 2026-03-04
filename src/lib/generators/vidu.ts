@@ -634,8 +634,11 @@ export class ViduVideoGenerator extends BaseVideoGenerator {
         _ulogInfo(`${logPrefix} - GenerateAudio: ${resolvedGenerateAudio}`)
         _ulogInfo(`${logPrefix} - 完整请求体:`, JSON.stringify(requestBody, null, 2))
 
+        const viduUrl = `${VIDU_BASE_URL}${endpoint}`
+        _ulogInfo(`${logPrefix} 请求 url: ${viduUrl}`)
+
         try {
-            const response = await fetch(`${VIDU_BASE_URL}${endpoint}`, {
+            const response = await fetch(viduUrl, {
                 method: 'POST',
                 headers: {
                     Authorization: `Token ${apiKey}`,

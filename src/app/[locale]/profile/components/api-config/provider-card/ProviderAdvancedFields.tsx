@@ -502,20 +502,22 @@ function ModelRow({
         </>
       ) : (
         <>
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={`text-[12px] font-semibold ${model.enabled ? 'text-[var(--glass-text-primary)]' : 'text-[var(--glass-text-secondary)]'}`}>
-                {model.name}
-              </span>
-              {state.isDefaultModel(model) && model.enabled && (
-                <span className="shrink-0 rounded-md bg-[var(--glass-text-primary)] px-1.5 py-0.5 text-[10px] leading-none text-white">
-                  {t('default')}
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`text-[12px] font-semibold ${model.enabled ? 'text-[var(--glass-text-primary)]' : 'text-[var(--glass-text-secondary)]'}`}>
+                  {model.name}
                 </span>
+                {state.isDefaultModel(model) && model.enabled && (
+                  <span className="shrink-0 rounded-md bg-[var(--glass-text-primary)] px-1.5 py-0.5 text-[10px] leading-none text-white">
+                    {t('default')}
+                  </span>
+                )}
+                <span className="shrink-0 text-[11px] text-[var(--glass-text-tertiary)]">{priceText}</span>
+              </div>
+              {!state.isPresetModel(model.modelKey) && (
+                <span className="break-all text-[11px] text-[var(--glass-text-tertiary)]">{model.modelId}</span>
               )}
-              <span className="shrink-0 text-[11px] text-[var(--glass-text-tertiary)]">{priceText}</span>
             </div>
-            <span className="break-all text-[11px] text-[var(--glass-text-tertiary)]">{model.modelId}</span>
-          </div>
 
           <div className="flex items-center gap-1.5">
             {!state.isPresetModel(model.modelKey) && onUpdateModel && (

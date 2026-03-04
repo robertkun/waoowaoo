@@ -272,8 +272,11 @@ export class MinimaxVideoGenerator extends BaseVideoGenerator {
             `${logPrefix} 提交任务，mode=${generationMode}，duration=${duration ?? '(provider default)'}s，resolution=${normalizedResolution ?? '(provider default)'}`,
         )
 
+        const minimaxUrl = `${MINIMAX_BASE_URL}/video_generation`
+        _ulogInfo(`${logPrefix} 请求 url: ${minimaxUrl}`)
+
         try {
-            const response = await fetch(`${MINIMAX_BASE_URL}/video_generation`, {
+            const response = await fetch(minimaxUrl, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${apiKey}`,

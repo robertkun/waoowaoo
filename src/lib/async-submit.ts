@@ -24,7 +24,10 @@ export async function submitFalTask(endpoint: string, input: Record<string, unkn
         throw new Error('请配置 FAL API Key')
     }
 
-    const response = await fetch(`https://queue.fal.run/${endpoint}`, {
+    const url = `https://queue.fal.run/${endpoint}`
+    _ulogInfo(`[FAL Queue] 请求 URL: ${url}`)
+
+    const response = await fetch(url, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

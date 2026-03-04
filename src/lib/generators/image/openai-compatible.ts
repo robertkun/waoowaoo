@@ -2,6 +2,7 @@ import OpenAI, { toFile } from 'openai'
 import { BaseImageGenerator, type GenerateResult, type ImageGenerateParams } from '../base'
 import { getProviderConfig } from '@/lib/api-config'
 import { getImageBase64Cached } from '@/lib/image-cache'
+import { logInfo as _ulogInfo } from '@/lib/logging/core'
 
 type OpenAIImageResponseFormat = 'url' | 'b64_json'
 type OpenAIImageOutputFormat = 'png' | 'jpeg' | 'webp'
@@ -220,6 +221,8 @@ export class OpenAICompatibleImageGenerator extends BaseImageGenerator {
       baseURL: config.baseUrl,
     })
     const model = (this.modelId || normalizeModel(options.modelId) || 'gpt-image-1').trim()
+    const imageApiUrl = `${config.baseUrl.replace(/\/+$/, '')}/images/generations`
+    _ulogInfo(`[OpenAI Compatible Image] 请求, url: ${imageApiUrl}, model: ${model}`)
     const responseFormat = normalizeResponseFormat(options.responseFormat)
     const outputFormat = normalizeOutputFormat(options.outputFormat)
     const rawSize = resolveRawSize(options)

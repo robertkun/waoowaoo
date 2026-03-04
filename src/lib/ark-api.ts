@@ -377,7 +377,7 @@ export async function arkImageGeneration(
 
     const url = `${ARK_BASE_URL}/images/generations`
 
-    _ulogInfo(`${logPrefix} 开始图片生成请求, 模型: ${request.model}`)
+    _ulogInfo(`${logPrefix} 开始图片生成请求, url: ${url}, 模型: ${request.model}`)
     _ulogInfo(`${logPrefix} 请求参数:`, JSON.stringify({
         model: request.model,
         size: request.size,
@@ -438,7 +438,7 @@ export async function arkCreateVideoTask(
 
     const url = `${ARK_BASE_URL}/contents/generations/tasks`
 
-    _ulogInfo(`${logPrefix} 创建视频任务, 模型: ${request.model}`)
+    _ulogInfo(`${logPrefix} 创建视频任务, url: ${url}, 模型: ${request.model}`)
 
     const response = await fetchWithRetry(
         url,
@@ -490,6 +490,8 @@ export async function arkQueryVideoTask(
     } = options
 
     const url = `${ARK_BASE_URL}/contents/generations/tasks/${taskId}`
+
+    _ulogInfo(`${logPrefix} 查询视频任务, url: ${url}`)
 
     const response = await fetchWithRetry(
         url,

@@ -95,6 +95,10 @@ export const PRESET_MODELS: PresetModel[] = [
     // 图像模型
     { modelId: 'banana', name: 'Banana Pro', type: 'image', provider: 'fal' },
     { modelId: 'banana-2', name: 'Banana 2', type: 'image', provider: 'fal' },
+    { modelId: 'rhart-image-n-g31-flash', name: '全能图片V2-文生图', type: 'image', provider: 'runninghub' },
+    { modelId: 'rhart-image-n-g31-flash-official', name: '全能图片V2-官方-文生图', type: 'image', provider: 'runninghub' },
+    { modelId: 'rhart-image-n-g31-flash-image-to-image', name: '全能图片V2-图生图', type: 'image', provider: 'runninghub' },
+    { modelId: 'rhart-image-n-g31-flash-official-image-to-image', name: '全能图片V2-官方-图生图', type: 'image', provider: 'runninghub' },
     { modelId: 'doubao-seedream-4-5-251128', name: 'Seedream 4.5', type: 'image', provider: 'ark' },
     { modelId: 'doubao-seedream-4-0-250828', name: 'Seedream 4.0', type: 'image', provider: 'ark' },
     { modelId: 'gemini-3-pro-image-preview', name: 'Banana Pro', type: 'image', provider: 'google' },
@@ -167,12 +171,14 @@ export const PRESET_PROVIDERS: Omit<Provider, 'apiKey' | 'hasApiKey'>[] = [
     { id: 'vidu', name: 'Vidu' },
     { id: 'fal', name: 'FAL' },
     { id: 'qwen', name: 'Qwen' },
+    { id: 'runninghub', name: 'RunningHub' },
 ]
 
 const ZH_PROVIDER_NAME_MAP: Record<string, string> = {
     ark: '火山引擎 Ark',
     minimax: '海螺 MiniMax',
     vidu: '生数科技 Vidu',
+    runninghub: 'RunningHub',
 }
 
 function isZhLocale(locale?: string): boolean {

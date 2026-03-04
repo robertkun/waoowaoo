@@ -71,6 +71,9 @@ export class GoogleGeminiImageGenerator extends BaseImageGenerator {
 
         const ai = new GoogleGenAI({ apiKey })
 
+        const googleImageUrl = `https://generativelanguage.googleapis.com/v1beta/models/${this.modelId}:generateContent`
+        _ulogInfo(`[Google Image] 请求, url: ${googleImageUrl}, model: ${this.modelId}`)
+
         // 构建内容数组
         const contentParts: ContentPart[] = []
 

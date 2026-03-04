@@ -130,7 +130,7 @@ export class GeminiCompatibleImageGenerator extends BaseImageGenerator {
 
         const ctx = getLogContext()
 
-        logErrorCtx(ctx, `[GeminiCompatible] 🔍 使用模型: ${this.modelId}, baseUrl: ${config.baseUrl}`)
+        logErrorCtx(ctx, `[GeminiCompatible] 🔍 使用模型: ${this.modelId}, url: ${config.baseUrl}`)
 
         // 🔥 请求参数调试日志
         const imagePartsSummary = contentParts

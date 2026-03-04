@@ -7,6 +7,9 @@
 
 import { BaseAudioGenerator, AudioGenerateParams, GenerateResult } from '../base'
 import { getProviderConfig } from '@/lib/api-config'
+import { logInfo as _ulogInfo } from '@/lib/logging/core'
+
+const QWEN_TTS_URL = 'https://dashscope.aliyuncs.com/api/v1/audio/tts'
 
 export class QwenTTSGenerator extends BaseAudioGenerator {
     protected async doGenerate(params: AudioGenerateParams): Promise<GenerateResult> {
@@ -20,8 +23,10 @@ export class QwenTTSGenerator extends BaseAudioGenerator {
             rate
         }
 
+        _ulogInfo(`[Qwen TTS] 请求, url: ${QWEN_TTS_URL}`)
+
         // 调用阿里百炼 TTS API
-        const response = await fetch('https://dashscope.aliyuncs.com/api/v1/audio/tts', {
+        const response = await fetch(QWEN_TTS_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

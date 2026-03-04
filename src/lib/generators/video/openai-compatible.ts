@@ -2,6 +2,7 @@ import OpenAI, { toFile } from 'openai'
 import { BaseVideoGenerator, type GenerateResult, type VideoGenerateParams } from '../base'
 import { getProviderConfig } from '@/lib/api-config'
 import { imageUrlToBase64 } from '@/lib/cos'
+import { logInfo as _ulogInfo } from '@/lib/logging/core'
 
 type OpenAIVideoSize = '720x1280' | '1280x720' | '1024x1792' | '1792x1024'
 type OpenAIVideoSeconds = '4' | '8' | '12'
@@ -138,6 +139,7 @@ async function createVideoViaFetchFallback(
   payload: Record<string, unknown>,
 ): Promise<{ id: string }> {
   const url = `${baseUrl.replace(/\/+$/, '')}/video/create`
+  _ulogInfo(`[OpenAI Compatible Video] fallback 请求, url: ${url}`)
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -237,6 +239,8 @@ export class OpenAICompatibleVideoGenerator extends BaseVideoGenerator {
 
     // Strategy: try OpenAI SDK first (/v1/videos), fallback to /v1/video/create
     let videoId: string
+    const videosUrl = `${config.baseUrl.replace(/\/+$/, '')}/v1/videos`
+    _ulogInfo(`[OpenAI Compatible Video] 请求, url: ${videosUrl}, model: ${model}`)
 
     try {
       const client = new OpenAI({

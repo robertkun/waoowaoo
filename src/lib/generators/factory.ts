@@ -21,6 +21,7 @@ import { OpenAICompatibleVideoGenerator } from './video'
 import { QwenTTSGenerator } from './audio'
 import { MinimaxVideoGenerator } from './minimax'
 import { ViduVideoGenerator } from './vidu'
+import { RunningHubImageGenerator } from './runninghub'
 import { getProviderKey } from '@/lib/api-config'
 
 /**
@@ -52,6 +53,8 @@ export function createImageGenerator(provider: string, modelId?: string): ImageG
             return new GoogleImagenGenerator(actualModelId)
         case 'ark':
             return new ArkSeedreamGenerator()
+        case 'runninghub':
+            return new RunningHubImageGenerator()
         case 'gemini-compatible':
             return new GeminiCompatibleImageGenerator(actualModelId, provider)
         case 'openai-compatible':

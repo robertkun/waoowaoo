@@ -232,7 +232,8 @@ export class FalVideoGenerator extends BaseVideoGenerator {
             throw new Error(`FAL_VIDEO_MODEL_UNSUPPORTED: ${modelId}`)
         }
         const vLogger = createScopedLogger({ module: 'worker.fal-video', action: 'fal_video_generate' })
-        vLogger.info({ message: 'FAL video generation request', details: { modelId, endpoint } })
+        const falVideoUrl = `https://queue.fal.run/${endpoint}`
+        vLogger.info({ message: 'FAL video generation request', details: { url: falVideoUrl, modelId, endpoint } })
 
         // 根据模型构建不同的请求体
         let input: Record<string, unknown>

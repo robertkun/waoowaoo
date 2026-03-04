@@ -459,6 +459,38 @@
     }
   },
   {
+    "modelType": "image",
+    "provider": "runninghub",
+    "modelId": "rhart-image-n-g31-flash",
+    "capabilities": {
+      "image": {}
+    }
+  },
+  {
+    "modelType": "image",
+    "provider": "runninghub",
+    "modelId": "rhart-image-n-g31-flash-official",
+    "capabilities": {
+      "image": {}
+    }
+  },
+  {
+    "modelType": "image",
+    "provider": "runninghub",
+    "modelId": "rhart-image-n-g31-flash-image-to-image",
+    "capabilities": {
+      "image": {}
+    }
+  },
+  {
+    "modelType": "image",
+    "provider": "runninghub",
+    "modelId": "rhart-image-n-g31-flash-official-image-to-image",
+    "capabilities": {
+      "image": {}
+    }
+  },
+  {
     "modelType": "video",
     "provider": "google",
     "modelId": "veo-3.1-generate-preview",
