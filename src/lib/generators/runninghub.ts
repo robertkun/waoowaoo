@@ -264,7 +264,14 @@ export class RunningHubImageGenerator extends BaseImageGenerator {
 const RUNNINGHUB_VIDEO_ENDPOINT_MAP: Record<string, string> = {
   'rhart-video-s-official': 'rhart-video-s-official/image-to-video-realistic',
   'rhart-video-v3.1-fast': 'rhart-video-v3.1-fast/image-to-video',
+  'rhart-video-g': 'rhart-video-g/image-to-video',
 }
+
+/** 使用 imageUrls + aspectRatio + resolution 的 modelId（与 v3.1-fast 同格式） */
+const RUNNINGHUB_VIDEO_STANDARD_FORMAT_IDS = new Set([
+  'rhart-video-v3.1-fast',
+  'rhart-video-g',
+])
 
 function getRunningHubVideoEndpoint(modelId?: string): string {
   const id = (modelId || '').trim()
@@ -307,8 +314,8 @@ export class RunningHubVideoGenerator extends BaseVideoGenerator {
     const endpoint = getRunningHubVideoEndpoint(modelId)
     const createTaskUrl = `${RUNNINGHUB_BASE_URL}/openapi/v2/${endpoint}`
 
-    const isV31Fast = modelId === 'rhart-video-v3.1-fast'
-    const body = isV31Fast
+    const useStandardFormat = RUNNINGHUB_VIDEO_STANDARD_FORMAT_IDS.has(modelId)
+    const body = useStandardFormat
       ? {
           prompt: prompt.trim() || '',
           aspectRatio: normalizeVideoAspectRatio(options.aspectRatio as string | undefined),
