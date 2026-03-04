@@ -63,6 +63,15 @@ function readSelectionForModel(
   return selection
 }
 
+/** 普通模式仅展示支持 normal 的模型；仅支持 firstlastframe 的模型（如可灵 o3-pro）仅在首尾帧面板展示 */
+function filterModelsForNormalMode(models: VideoModelOption[]): VideoModelOption[] {
+  return models.filter((option) => {
+    const genOpts = option.capabilities?.video?.generationModeOptions
+    if (!Array.isArray(genOpts) || genOpts.length === 0) return true
+    return genOpts.includes('normal')
+  })
+}
+
 export function usePanelVideoModel({
   defaultVideoModel,
   capabilityOverrides,
@@ -72,7 +81,10 @@ export function usePanelVideoModel({
   const [generationOptions, setGenerationOptions] = useState<VideoGenerationOptions>(() =>
     readSelectionForModel(capabilityOverrides, defaultVideoModel || ''),
   )
-  const videoModelOptions = userVideoModels ?? []
+  const videoModelOptions = useMemo(
+    () => filterModelsForNormalMode(userVideoModels ?? []),
+    [userVideoModels],
+  )
   const selectedOption = videoModelOptions.find((option) => option.value === selectedModel)
   const pricingTiers = useMemo(
     () => projectVideoPricingTiersByFixedSelections({
@@ -87,6 +99,12 @@ export function usePanelVideoModel({
   useEffect(() => {
     setSelectedModel(defaultVideoModel || '')
   }, [defaultVideoModel])
+
+  useEffect(() => {
+    if (selectedModel && !videoModelOptions.some((o) => o.value === selectedModel)) {
+      setSelectedModel(videoModelOptions[0]?.value || '')
+    }
+  }, [selectedModel, videoModelOptions])
 
   const capabilityDefinitions = useMemo(
     () => resolveEffectiveVideoCapabilityDefinitions({

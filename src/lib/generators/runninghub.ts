@@ -86,12 +86,17 @@ function normalizeResolution(raw?: string): string {
   return '1k'
 }
 
-async function uploadBase64ToRunninghub(base64Image: string, apiKey: string): Promise<string> {
+async function uploadBase64ToRunninghub(
+  base64Image: string,
+  apiKey: string,
+  options?: { maxSizeMB?: number },
+): Promise<string> {
   const cleanedKey = apiKey.replace(/^Bearer\s+/i, '')
   const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '')
   let buffer = Buffer.from(base64Data, 'base64')
 
-  const MAX_SIZE_BYTES = 7 * 1024 * 1024
+  const maxSizeMB = options?.maxSizeMB ?? 7
+  const MAX_SIZE_BYTES = maxSizeMB * 1024 * 1024
   if (buffer.length > MAX_SIZE_BYTES) {
     let quality = 90
 
@@ -305,6 +310,83 @@ const RUNNINGHUB_VIDEO_STANDARD_FORMAT_IDS = new Set([
 /** 使用 firstImageUrl + lastImageUrl + duration + sound 的 modelId（可灵 o3-pro 首尾帧） */
 const RUNNINGHUB_VIDEO_KLING_O3_PRO_IDS = new Set(['kling-video-o3-pro'])
 
+/** 全能视频S-官方（非真人）：输入图须缩放裁剪至 720x1280/1280x720/1024x1792/1792x1024，单张≤10MB */
+const RUNNINGHUB_VIDEO_RHART_S_OFFICIAL_IDS = new Set(['rhart-video-s-official-image-to-video'])
+
+/** aspectRatio + resolution → [width, height] */
+const RHART_S_OFFICIAL_DIMENSION_MAP: Record<string, [number, number]> = {
+  '16:9_720p': [1280, 720],
+  '9:16_720p': [720, 1280],
+  '16:9_1080p': [1792, 1024],
+  '9:16_1080p': [1024, 1792],
+}
+
+function getRhartSOfficialTargetDimension(aspectRatio: string, resolution: string): [number, number] {
+  const ar = (aspectRatio || '16:9').trim()
+  const res = (resolution || '720p').trim().toLowerCase()
+  const key = `${ar}_${res}` as keyof typeof RHART_S_OFFICIAL_DIMENSION_MAP
+  return RHART_S_OFFICIAL_DIMENSION_MAP[key] ?? [1280, 720]
+}
+
+async function prepareImageForRhartVideoSOfficial(
+  buffer: Buffer,
+  aspectRatio: string,
+  resolution: string,
+): Promise<Buffer> {
+  const [width, height] = getRhartSOfficialTargetDimension(aspectRatio, resolution)
+  const MAX_SIZE_BYTES = 10 * 1024 * 1024
+
+  let processed = await sharp(buffer)
+    .resize(width, height, { fit: 'cover', position: 'center' })
+    .jpeg({ quality: 90, mozjpeg: true })
+    .toBuffer()
+
+  let quality = 90
+  while (processed.length > MAX_SIZE_BYTES && quality > 50) {
+    quality -= 5
+    processed = await sharp(buffer)
+      .resize(width, height, { fit: 'cover', position: 'center' })
+      .jpeg({ quality, mozjpeg: true })
+      .toBuffer()
+  }
+
+  return processed
+}
+
+const RHART_S_OFFICIAL_ALLOWED_DIMENSIONS = new Set<string>([
+  '720x1280', '1280x720', '1024x1792', '1792x1024',
+])
+
+/** 将图片缩放裁剪至允许尺寸，供全能视频S-官方使用。可传 options 或从图片推断。 */
+export async function ensureImageSizeForVideoSOfficial(
+  base64Image: string,
+  options?: { aspectRatio?: string; resolution?: string },
+): Promise<string> {
+  const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '')
+  const buffer = Buffer.from(base64Data, 'base64')
+  const metadata = await sharp(buffer).metadata()
+  const w = metadata.width ?? 0
+  const h = metadata.height ?? 0
+  const dimKey = `${w}x${h}`
+  if (RHART_S_OFFICIAL_ALLOWED_DIMENSIONS.has(dimKey)) {
+    return base64Image
+  }
+
+  let aspectRatio: string
+  let resolution: string
+  if (options?.aspectRatio?.trim() && options?.resolution?.trim()) {
+    aspectRatio = options.aspectRatio.trim()
+    resolution = options.resolution.trim().toLowerCase()
+    resolution = resolution === '1080p' ? '1080p' : '720p'
+  } else {
+    aspectRatio = w >= h ? '16:9' : '9:16'
+    resolution = Math.max(w, h) > 1280 ? '1080p' : '720p'
+  }
+
+  const processed = await prepareImageForRhartVideoSOfficial(buffer, aspectRatio, resolution)
+  return `data:image/jpeg;base64,${processed.toString('base64')}`
+}
+
 function getRunningHubVideoEndpoint(modelId?: string): string {
   const id = (modelId || '').trim()
   return RUNNINGHUB_VIDEO_ENDPOINT_MAP[id] ?? 'rhart-video-s-official/image-to-video-realistic'
@@ -340,8 +422,16 @@ export class RunningHubVideoGenerator extends BaseVideoGenerator {
       action: 'runninghub_video_generate',
     })
 
-    const base64 = await imageUrlToBase64(imageUrl)
-    const uploadedUrl = await uploadBase64ToRunninghub(base64, cleanedKey)
+    let base64 = await imageUrlToBase64(imageUrl)
+    const useRhartSOfficial = RUNNINGHUB_VIDEO_RHART_S_OFFICIAL_IDS.has(modelId)
+    if (useRhartSOfficial) {
+      const aspectRatio = normalizeVideoAspectRatio(options.aspectRatio as string | undefined)
+      const resolution = (options.resolution as string | undefined)?.trim().toLowerCase()
+      const res = resolution === '1080p' ? '1080p' : '720p'
+      base64 = await ensureImageSizeForVideoSOfficial(base64, { aspectRatio, resolution: res })
+    }
+    const uploadOptions = useRhartSOfficial ? { maxSizeMB: 10 } : (RUNNINGHUB_VIDEO_KLING_O3_PRO_IDS.has(modelId) ? { maxSizeMB: 50 } : undefined)
+    const uploadedUrl = await uploadBase64ToRunninghub(base64, cleanedKey, uploadOptions)
 
     const endpoint = getRunningHubVideoEndpoint(modelId)
     const createTaskUrl = `${RUNNINGHUB_BASE_URL}/openapi/v2/${endpoint}`
@@ -351,22 +441,21 @@ export class RunningHubVideoGenerator extends BaseVideoGenerator {
 
     let body: Record<string, unknown>
     if (useKlingO3Pro) {
-      const lastFrameUrl = options.lastFrameImageUrl as string | undefined
-      if (!lastFrameUrl) {
-        throw new Error('可灵图生视频o3-pro 需要首尾帧模式，请提供尾帧图片')
-      }
-      const lastBase64 = await imageUrlToBase64(lastFrameUrl)
-      const lastUploadedUrl = await uploadBase64ToRunninghub(lastBase64, cleanedKey)
       const rawDuration = Math.floor(Number(options.duration) || 5)
-      const validDurations = [5, 6, 8, 10]
+      const validDurations = [3, 4, 5, 6, 8, 10]
       const durationNum = validDurations.includes(rawDuration) ? rawDuration : 5
       const sound = typeof options.generateAudio === 'boolean' ? options.generateAudio : true
+      const lastFrameUrl = options.lastFrameImageUrl as string | undefined
       body = {
         prompt: prompt.trim() || '',
         firstImageUrl: uploadedUrl,
-        lastImageUrl: lastUploadedUrl,
         duration: durationNum,
         sound,
+      }
+      if (lastFrameUrl) {
+        const lastBase64 = await imageUrlToBase64(lastFrameUrl)
+        const lastUploadedUrl = await uploadBase64ToRunninghub(lastBase64, cleanedKey, { maxSizeMB: 50 })
+        ;(body as Record<string, unknown>).lastImageUrl = lastUploadedUrl
       }
     } else if (useStandardFormat) {
       body = {

@@ -544,7 +544,7 @@
     "modelId": "kling-video-o3-pro",
     "capabilities": {
       "video": {
-        "generationModeOptions": ["firstlastframe"],
+        "generationModeOptions": ["normal", "firstlastframe"],
         "durationOptions": [3, 4, 5, 6, 8, 10],
         "generateAudioOptions": [true, false],
         "firstlastframe": true
