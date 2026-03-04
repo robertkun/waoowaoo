@@ -493,9 +493,25 @@
   {
     "modelType": "video",
     "provider": "runninghub",
-    "modelId": "rhart-video-s-official",
+    "modelId": "rhart-video-s-official-image-to-video-realistic",
     "capabilities": {
-      "video": {}
+      "video": {
+        "generationModeOptions": ["normal"],
+        "durationOptions": [4, 8, 12],
+        "resolutionOptions": ["720p", "1080p"]
+      }
+    }
+  },
+  {
+    "modelType": "video",
+    "provider": "runninghub",
+    "modelId": "rhart-video-s-official-image-to-video",
+    "capabilities": {
+      "video": {
+        "generationModeOptions": ["normal"],
+        "durationOptions": [4, 8],
+        "resolutionOptions": ["720p", "1080p"]
+      }
     }
   },
   {
@@ -503,7 +519,11 @@
     "provider": "runninghub",
     "modelId": "rhart-video-v3.1-fast",
     "capabilities": {
-      "video": {}
+      "video": {
+        "generationModeOptions": ["normal"],
+        "durationOptions": [8],
+        "resolutionOptions": ["720p", "1080p"]
+      }
     }
   },
   {
@@ -511,7 +531,11 @@
     "provider": "runninghub",
     "modelId": "rhart-video-g",
     "capabilities": {
-      "video": {}
+      "video": {
+        "generationModeOptions": ["normal"],
+        "durationOptions": [8],
+        "resolutionOptions": ["720p", "1080p"]
+      }
     }
   },
   {

@@ -36,6 +36,34 @@ interface RunningHubTaskResponse {
   data?: RunningHubTaskItem[]
 }
 
+interface RunningHubApiErrorPayload {
+  taskId?: string
+  status?: string
+  errorCode?: string
+  errorMessage?: string
+  [key: string]: unknown
+}
+
+function extractRunningHubErrorMessage(payload: unknown): string | null {
+  if (!payload || typeof payload !== 'object') return null
+  const obj = payload as RunningHubApiErrorPayload & { data?: Array<{ failedReason?: { exception_message?: string }; errorMessage?: string }>; msg?: string }
+  const msg = typeof obj.errorMessage === 'string' ? obj.errorMessage.trim() : null
+  if (msg) return msg
+  const reason = obj.failedReason as { exception_message?: string } | undefined
+  const ex = typeof reason?.exception_message === 'string' ? reason.exception_message.trim() : null
+  if (ex) return ex
+  const first = Array.isArray(obj.data) ? obj.data[0] : null
+  if (first) {
+    const firstMsg = typeof first.errorMessage === 'string' ? first.errorMessage.trim() : null
+    if (firstMsg) return firstMsg
+    const firstEx = typeof first.failedReason?.exception_message === 'string' ? first.failedReason.exception_message.trim() : null
+    if (firstEx) return firstEx
+  }
+  const topMsg = typeof obj.msg === 'string' ? obj.msg.trim() : null
+  if (topMsg && topMsg !== 'success') return topMsg
+  return null
+}
+
 const RUNNINGHUB_BASE_URL = 'https://www.runninghub.cn'
 
 /** modelId → 接口路径（无前导 /openapi/v2/） */
@@ -179,10 +207,9 @@ export class RunningHubImageGenerator extends BaseImageGenerator {
 
     const taskId = taskRes.data.taskId
     if (!taskId) {
-      const errDetail = JSON.stringify(taskRes.data)
-      throw new Error(
-        `RunningHub 任务创建失败: ${errDetail} | url=${createTaskUrl} | modelId=${optionsModelId ?? '(未传)'}`,
-      )
+      const apiMessage = extractRunningHubErrorMessage(taskRes.data)
+      const displayMessage = apiMessage ?? `RunningHub 任务创建失败 | url=${createTaskUrl} | modelId=${optionsModelId ?? '(未传)'}`
+      throw new Error(displayMessage)
     }
 
     const pollUrl = `${RUNNINGHUB_BASE_URL}/task/openapi/outputs`
@@ -249,7 +276,7 @@ export class RunningHubImageGenerator extends BaseImageGenerator {
       }
 
       if (code === 805) {
-        const reason = data?.[0]?.failedReason?.exception_message ?? '未知原因'
+        const reason = extractRunningHubErrorMessage(res.data) ?? '未知原因'
         throw new Error(`RunningHub 任务失败: ${reason}`)
       }
 
@@ -262,7 +289,8 @@ export class RunningHubImageGenerator extends BaseImageGenerator {
 
 /** modelId → 接口路径（无前导 /openapi/v2/） */
 const RUNNINGHUB_VIDEO_ENDPOINT_MAP: Record<string, string> = {
-  'rhart-video-s-official': 'rhart-video-s-official/image-to-video-realistic',
+  'rhart-video-s-official-image-to-video-realistic': 'rhart-video-s-official/image-to-video-realistic',
+  'rhart-video-s-official-image-to-video': 'rhart-video-s-official/image-to-video',
   'rhart-video-v3.1-fast': 'rhart-video-v3.1-fast/image-to-video',
   'rhart-video-g': 'rhart-video-g/image-to-video',
 }
@@ -293,14 +321,14 @@ function normalizeVideoAspectRatio(raw?: string): string {
 
 function normalizeVideoResolution(raw?: string): string {
   const s = (raw || '').trim().toLowerCase()
-  if (s === '720p' || s === '1080p' || s === '540p') return s
-  return '720p'
+  if (s === '720p' || s === '1080p' || s === '540p' || s === '480p') return s
+  return '480p'
 }
 
 export class RunningHubVideoGenerator extends BaseVideoGenerator {
   protected async doGenerate(params: VideoGenerateParams): Promise<GenerateResult> {
     const { userId, imageUrl, prompt = '', options = {} } = params
-    const modelId = (options.modelId as string | undefined) || 'rhart-video-s-official'
+    const modelId = (options.modelId as string | undefined) || 'rhart-video-s-official-image-to-video-realistic'
     const { apiKey } = await getProviderConfig(userId, 'runninghub')
     const cleanedKey = apiKey.replace(/^Bearer\s+/i, '')
     const logger = createScopedLogger({
@@ -321,6 +349,7 @@ export class RunningHubVideoGenerator extends BaseVideoGenerator {
           aspectRatio: normalizeVideoAspectRatio(options.aspectRatio as string | undefined),
           imageUrls: [uploadedUrl],
           resolution: normalizeVideoResolution(options.resolution as string | undefined),
+          duration: normalizeVideoDuration(options.duration as string | number | undefined),
         }
       : {
           prompt: prompt.trim() || '',
@@ -341,10 +370,9 @@ export class RunningHubVideoGenerator extends BaseVideoGenerator {
 
     const taskId = taskRes.data.taskId
     if (!taskId) {
-      const errDetail = JSON.stringify(taskRes.data)
-      throw new Error(
-        `RunningHub 视频任务创建失败: ${errDetail} | url=${createTaskUrl}`,
-      )
+      const apiMessage = extractRunningHubErrorMessage(taskRes.data)
+      const displayMessage = apiMessage ?? `RunningHub 视频任务创建失败 | url=${createTaskUrl}`
+      throw new Error(displayMessage)
     }
 
     const pollUrl = `${RUNNINGHUB_BASE_URL}/task/openapi/outputs`
@@ -388,7 +416,7 @@ export class RunningHubVideoGenerator extends BaseVideoGenerator {
         continue
       }
       if (code === 805) {
-        const reason = data?.[0]?.failedReason?.exception_message ?? '未知原因'
+        const reason = extractRunningHubErrorMessage(res.data) ?? '未知原因'
         throw new Error(`RunningHub 视频任务失败: ${reason}`)
       }
       throw new Error(`RunningHub 视频未知状态: code=${code}, msg=${msg}`)

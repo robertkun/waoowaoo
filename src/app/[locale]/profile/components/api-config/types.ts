@@ -141,7 +141,8 @@ export const PRESET_MODELS: PresetModel[] = [
     { modelId: 't2v-01-director', name: 'T2V-01 Director', type: 'video', provider: 'minimax' },
 
     // RunningHub 视频模型
-    { modelId: 'rhart-video-s-official', name: '全能视频S-官方-图生视频-支持真人', type: 'video', provider: 'runninghub' },
+    { modelId: 'rhart-video-s-official-image-to-video-realistic', name: '全能视频S-官方-图生视频-支持真人', type: 'video', provider: 'runninghub' },
+    { modelId: 'rhart-video-s-official-image-to-video', name: '全能视频S-官方-图生视频', type: 'video', provider: 'runninghub' },
     { modelId: 'rhart-video-v3.1-fast', name: '全能视频V3.1-fast-图生视频', type: 'video', provider: 'runninghub' },
     { modelId: 'rhart-video-g', name: '全能视频G-图生视频', type: 'video', provider: 'runninghub' },
 
