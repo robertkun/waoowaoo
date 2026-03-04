@@ -471,6 +471,22 @@
     }
   },
   {
+    "apiType": "video",
+    "provider": "runninghub",
+    "modelId": "kling-video-o3-pro",
+    "pricing": {
+      "mode": "capability",
+      "tiers": [
+        { "when": { "duration": 3 }, "amount": 2.07 },
+        { "when": { "duration": 4 }, "amount": 2.76 },
+        { "when": { "duration": 5 }, "amount": 3.45 },
+        { "when": { "duration": 6 }, "amount": 4.14 },
+        { "when": { "duration": 8 }, "amount": 5.52 },
+        { "when": { "duration": 10 }, "amount": 6.9 }
+      ]
+    }
+  },
+  {
     "apiType": "image",
     "provider": "google",
     "modelId": "gemini-3-pro-image-preview",

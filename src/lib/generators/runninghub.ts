@@ -293,6 +293,7 @@ const RUNNINGHUB_VIDEO_ENDPOINT_MAP: Record<string, string> = {
   'rhart-video-s-official-image-to-video': 'rhart-video-s-official/image-to-video',
   'rhart-video-v3.1-fast': 'rhart-video-v3.1-fast/image-to-video',
   'rhart-video-g': 'rhart-video-g/image-to-video',
+  'kling-video-o3-pro': 'kling-video-o3-pro/image-to-video',
 }
 
 /** 使用 imageUrls + aspectRatio + resolution 的 modelId（与 v3.1-fast 同格式） */
@@ -300,6 +301,9 @@ const RUNNINGHUB_VIDEO_STANDARD_FORMAT_IDS = new Set([
   'rhart-video-v3.1-fast',
   'rhart-video-g',
 ])
+
+/** 使用 firstImageUrl + lastImageUrl + duration + sound 的 modelId（可灵 o3-pro 首尾帧） */
+const RUNNINGHUB_VIDEO_KLING_O3_PRO_IDS = new Set(['kling-video-o3-pro'])
 
 function getRunningHubVideoEndpoint(modelId?: string): string {
   const id = (modelId || '').trim()
@@ -342,20 +346,43 @@ export class RunningHubVideoGenerator extends BaseVideoGenerator {
     const endpoint = getRunningHubVideoEndpoint(modelId)
     const createTaskUrl = `${RUNNINGHUB_BASE_URL}/openapi/v2/${endpoint}`
 
+    const useKlingO3Pro = RUNNINGHUB_VIDEO_KLING_O3_PRO_IDS.has(modelId)
     const useStandardFormat = RUNNINGHUB_VIDEO_STANDARD_FORMAT_IDS.has(modelId)
-    const body = useStandardFormat
-      ? {
-          prompt: prompt.trim() || '',
-          aspectRatio: normalizeVideoAspectRatio(options.aspectRatio as string | undefined),
-          imageUrls: [uploadedUrl],
-          resolution: normalizeVideoResolution(options.resolution as string | undefined),
-          duration: normalizeVideoDuration(options.duration as string | number | undefined),
-        }
-      : {
-          prompt: prompt.trim() || '',
-          duration: normalizeVideoDuration(options.duration as string | number | undefined),
-          imageUrl: uploadedUrl,
-        }
+
+    let body: Record<string, unknown>
+    if (useKlingO3Pro) {
+      const lastFrameUrl = options.lastFrameImageUrl as string | undefined
+      if (!lastFrameUrl) {
+        throw new Error('可灵图生视频o3-pro 需要首尾帧模式，请提供尾帧图片')
+      }
+      const lastBase64 = await imageUrlToBase64(lastFrameUrl)
+      const lastUploadedUrl = await uploadBase64ToRunninghub(lastBase64, cleanedKey)
+      const rawDuration = Math.floor(Number(options.duration) || 5)
+      const validDurations = [5, 6, 8, 10]
+      const durationNum = validDurations.includes(rawDuration) ? rawDuration : 5
+      const sound = typeof options.generateAudio === 'boolean' ? options.generateAudio : true
+      body = {
+        prompt: prompt.trim() || '',
+        firstImageUrl: uploadedUrl,
+        lastImageUrl: lastUploadedUrl,
+        duration: durationNum,
+        sound,
+      }
+    } else if (useStandardFormat) {
+      body = {
+        prompt: prompt.trim() || '',
+        aspectRatio: normalizeVideoAspectRatio(options.aspectRatio as string | undefined),
+        imageUrls: [uploadedUrl],
+        resolution: normalizeVideoResolution(options.resolution as string | undefined),
+        duration: normalizeVideoDuration(options.duration as string | number | undefined),
+      }
+    } else {
+      body = {
+        prompt: prompt.trim() || '',
+        duration: normalizeVideoDuration(options.duration as string | number | undefined),
+        imageUrl: uploadedUrl,
+      }
+    }
     logger.info({
       message: 'RunningHub 图生视频请求',
       details: { url: createTaskUrl },

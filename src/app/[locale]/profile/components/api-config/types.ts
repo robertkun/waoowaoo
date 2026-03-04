@@ -145,6 +145,7 @@ export const PRESET_MODELS: PresetModel[] = [
     { modelId: 'rhart-video-s-official-image-to-video', name: '全能视频S-官方-图生视频', type: 'video', provider: 'runninghub' },
     { modelId: 'rhart-video-v3.1-fast', name: '全能视频V3.1-fast-图生视频', type: 'video', provider: 'runninghub' },
     { modelId: 'rhart-video-g', name: '全能视频G-图生视频', type: 'video', provider: 'runninghub' },
+    { modelId: 'kling-video-o3-pro', name: '可灵图生视频o3-pro', type: 'video', provider: 'runninghub' },
 
     // Vidu 视频模型
     { modelId: 'viduq3-pro', name: 'Vidu Q3 Pro', type: 'video', provider: 'vidu' },

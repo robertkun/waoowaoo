@@ -116,13 +116,34 @@ function write(level: LogLevel, event: Omit<LogEvent, 'ts' | 'level' | 'service'
 
   const safeEvent = redactValue(merged, [...LOG_CONFIG.redactKeys]) as LogEvent
   if (shouldSuppressLogEvent(safeEvent)) return
-  const line = JSON.stringify(safeEvent)
-  if (level === 'ERROR') {
-    console.error(line)
-  } else {
-    console.log(line)
+
+  let line: string
+  try {
+    line = JSON.stringify(safeEvent)
+  } catch {
+    line = JSON.stringify({
+      ts: merged.ts,
+      level,
+      service: merged.service,
+      message: merged.message,
+      _serializationError: 'JSON.stringify failed',
+    })
   }
-  writeProjectLogLine(line, safeEvent.projectId || undefined, safeEvent.module || undefined)
+
+  try {
+    if (level === 'ERROR') {
+      console.error(line)
+    } else {
+      console.log(line)
+    }
+    writeProjectLogLine(line, safeEvent.projectId || undefined, safeEvent.module || undefined)
+  } catch (writeErr) {
+    try {
+      console.error('[logging] write failed:', writeErr instanceof Error ? writeErr.message : String(writeErr))
+    } catch {
+      // 避免日志二次失败导致进程崩溃
+    }
+  }
 }
 
 export function logEvent(event: Partial<LogEvent> & { level: LogLevel; message: string }): void {

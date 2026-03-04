@@ -540,6 +540,19 @@
   },
   {
     "modelType": "video",
+    "provider": "runninghub",
+    "modelId": "kling-video-o3-pro",
+    "capabilities": {
+      "video": {
+        "generationModeOptions": ["firstlastframe"],
+        "durationOptions": [3, 4, 5, 6, 8, 10],
+        "generateAudioOptions": [true, false],
+        "firstlastframe": true
+      }
+    }
+  },
+  {
+    "modelType": "video",
     "provider": "google",
     "modelId": "veo-3.1-generate-preview",
     "capabilities": {
