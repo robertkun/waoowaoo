@@ -492,6 +492,14 @@
   },
   {
     "modelType": "video",
+    "provider": "runninghub",
+    "modelId": "rhart-video-s-official",
+    "capabilities": {
+      "video": {}
+    }
+  },
+  {
+    "modelType": "video",
     "provider": "google",
     "modelId": "veo-3.1-generate-preview",
     "capabilities": {

@@ -1,7 +1,13 @@
 import axios from 'axios'
 import FormData from 'form-data'
 import sharp from 'sharp'
-import { BaseImageGenerator, type GenerateResult, type ImageGenerateParams } from './base'
+import {
+  BaseImageGenerator,
+  BaseVideoGenerator,
+  type GenerateResult,
+  type ImageGenerateParams,
+  type VideoGenerateParams,
+} from './base'
 import { getProviderConfig } from '@/lib/api-config'
 import { createScopedLogger } from '@/lib/logging/core'
 import { imageUrlToBase64 } from '@/lib/cos'
@@ -40,19 +46,9 @@ const RUNNINGHUB_MODEL_PATH_MAP: Record<string, string> = {
   'rhart-image-n-g31-flash-official-image-to-image': 'rhart-image-n-g31-flash-official',
 }
 
-/** 使用 image-to-image 接口的 modelId（图生图）；其余有参考图时用 edit */
-const RUNNINGHUB_IMAGE_TO_IMAGE_MODEL_IDS = new Set<string>([
-  'rhart-image-n-g31-flash-image-to-image',
-  'rhart-image-n-g31-flash-official-image-to-image',
-])
-
 function getRunningHubModelPath(modelId?: string): string {
   const id = (modelId || '').trim()
   return RUNNINGHUB_MODEL_PATH_MAP[id] || 'rhart-image-n-g31-flash'
-}
-
-function useImageToImageEndpoint(modelId?: string): boolean {
-  return RUNNINGHUB_IMAGE_TO_IMAGE_MODEL_IDS.has((modelId || '').trim())
 }
 
 function normalizeResolution(raw?: string): string {
@@ -147,9 +143,8 @@ export class RunningHubImageGenerator extends BaseImageGenerator {
 
     const modelPath = getRunningHubModelPath(optionsModelId)
     const hasReferenceImages = imageUrls.length > 0
-    const refEndpoint = useImageToImageEndpoint(optionsModelId) ? 'image-to-image' : 'edit'
     const endpoint = hasReferenceImages
-      ? `/openapi/v2/${modelPath}/${refEndpoint}`
+      ? `/openapi/v2/${modelPath}/image-to-image`
       : `/openapi/v2/${modelPath}/text-to-image`
 
     const createTaskUrl = `${RUNNINGHUB_BASE_URL}${endpoint}`
@@ -262,6 +257,107 @@ export class RunningHubImageGenerator extends BaseImageGenerator {
     }
 
     throw new Error('RunningHub 任务轮询超时')
+  }
+}
+
+const RUNNINGHUB_VIDEO_ENDPOINT = 'rhart-video-s-official/image-to-video-realistic'
+
+function normalizeVideoDuration(raw?: string | number): string {
+  if (raw === undefined || raw === null) return '4'
+  const s = String(raw).trim()
+  if (s !== '') return s
+  return '4'
+}
+
+export class RunningHubVideoGenerator extends BaseVideoGenerator {
+  protected async doGenerate(params: VideoGenerateParams): Promise<GenerateResult> {
+    const { userId, imageUrl, prompt = '', options = {} } = params
+    const { apiKey } = await getProviderConfig(userId, 'runninghub')
+    const cleanedKey = apiKey.replace(/^Bearer\s+/i, '')
+    const logger = createScopedLogger({
+      module: 'worker.runninghub-video',
+      action: 'runninghub_video_generate',
+    })
+
+    const base64 = await imageUrlToBase64(imageUrl)
+    const uploadedUrl = await uploadBase64ToRunninghub(base64, cleanedKey)
+
+    const duration = normalizeVideoDuration(options.duration as string | number | undefined)
+
+    const createTaskUrl = `${RUNNINGHUB_BASE_URL}/openapi/v2/${RUNNINGHUB_VIDEO_ENDPOINT}`
+    const body = {
+      prompt: prompt.trim() || '',
+      duration,
+      imageUrl: uploadedUrl,
+    }
+    logger.info({
+      message: 'RunningHub 图生视频请求',
+      details: { url: createTaskUrl },
+    })
+
+    const taskRes = await axios.post<{ taskId?: string }>(createTaskUrl, body, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${cleanedKey}`,
+      },
+    })
+
+    const taskId = taskRes.data.taskId
+    if (!taskId) {
+      const errDetail = JSON.stringify(taskRes.data)
+      throw new Error(
+        `RunningHub 视频任务创建失败: ${errDetail} | url=${createTaskUrl}`,
+      )
+    }
+
+    const pollUrl = `${RUNNINGHUB_BASE_URL}/task/openapi/outputs`
+    logger.info({ message: 'RunningHub 轮询视频任务结果', details: { url: pollUrl, taskId } })
+
+    const maxAttempts = 400
+    const delayMs = 3000
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      let res: { data: RunningHubTaskResponse }
+      try {
+        res = await axios.post<RunningHubTaskResponse>(pollUrl, {
+          taskId,
+          apiKey: cleanedKey,
+        })
+      } catch (error: unknown) {
+        if (axios.isAxiosError(error)) {
+          const status = error.response?.status
+          if (status === 504 || status === 502 || status === 503) {
+            logger.info({
+              message: 'RunningHub 视频轮询暂时失败，将重试',
+              details: { url: pollUrl, taskId, status, attempt },
+            })
+            await new Promise<void>((r) => setTimeout(r, delayMs))
+            continue
+          }
+        }
+        throw error
+      }
+
+      const { code, msg, data } = res.data
+      if (code === 0 && msg === 'success') {
+        const fileUrl = data?.[0]?.fileUrl
+        if (!fileUrl) {
+          return { success: false, error: 'RunningHub 视频任务成功但未返回 fileUrl' }
+        }
+        return { success: true, videoUrl: fileUrl }
+      }
+      if (code === 804 || code === 813) {
+        await new Promise<void>((r) => setTimeout(r, delayMs))
+        continue
+      }
+      if (code === 805) {
+        const reason = data?.[0]?.failedReason?.exception_message ?? '未知原因'
+        throw new Error(`RunningHub 视频任务失败: ${reason}`)
+      }
+      throw new Error(`RunningHub 视频未知状态: code=${code}, msg=${msg}`)
+    }
+
+    throw new Error('RunningHub 视频任务轮询超时')
   }
 }
 

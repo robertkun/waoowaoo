@@ -140,6 +140,9 @@ export const PRESET_MODELS: PresetModel[] = [
     { modelId: 't2v-01', name: 'T2V-01', type: 'video', provider: 'minimax' },
     { modelId: 't2v-01-director', name: 'T2V-01 Director', type: 'video', provider: 'minimax' },
 
+    // RunningHub 视频模型
+    { modelId: 'rhart-video-s-official', name: '全能视频S-官方-图生视频-支持真人', type: 'video', provider: 'runninghub' },
+
     // Vidu 视频模型
     { modelId: 'viduq3-pro', name: 'Vidu Q3 Pro', type: 'video', provider: 'vidu' },
     { modelId: 'viduq2-pro-fast', name: 'Vidu Q2 Pro Fast', type: 'video', provider: 'vidu' },

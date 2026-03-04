@@ -266,6 +266,11 @@ export function resolveGenerationOptionsForModel(input: {
     return { options: { ...selection }, issues: [] }
   }
 
+  const optionFields = getCapabilityOptionFields(input.modelType, input.capabilities)
+  if (Object.keys(optionFields).length === 0) {
+    return { options: {}, issues: [] }
+  }
+
   const issues = validateCapabilitySelectionForModel({
     modelKey: input.modelKey,
     modelType: input.modelType,
@@ -278,7 +283,6 @@ export function resolveGenerationOptionsForModel(input: {
     return { options: {}, issues }
   }
 
-  const optionFields = getCapabilityOptionFields(input.modelType, input.capabilities)
   const options: Record<string, CapabilityValue> = {}
   for (const field of Object.keys(optionFields)) {
     const value = selection[field]

@@ -15,7 +15,10 @@ import {
   findBuiltinCapabilities,
   listBuiltinCapabilityCatalog,
 } from '@/lib/model-capabilities/catalog'
-import { validateCapabilitySelectionForModel } from '@/lib/model-capabilities/lookup'
+import {
+  getCapabilityOptionFields,
+  validateCapabilitySelectionForModel,
+} from '@/lib/model-capabilities/lookup'
 import { resolveBuiltinPricing } from '@/lib/model-pricing/lookup'
 import type { PricingApiType } from '@/lib/model-pricing/catalog'
 
@@ -427,12 +430,18 @@ export function calcVideo(
       selections.generateAudio = defaultGenerateAudio
     }
   }
-  validateVideoSelectionsAgainstCapabilitiesOrThrow(model, selections)
+  const capabilities = resolveVideoCapabilities(model)
+  const allowedFields = new Set(Object.keys(getCapabilityOptionFields('video', capabilities)))
+  const filteredSelections: Record<string, CapabilityValue> = {}
+  for (const [key, value] of Object.entries(selections)) {
+    if (allowedFields.has(key)) filteredSelections[key] = value
+  }
+  validateVideoSelectionsAgainstCapabilitiesOrThrow(model, filteredSelections)
 
   const resolutionResult = resolveBuiltinPricing({
     apiType: 'video',
     model,
-    selections,
+    selections: filteredSelections,
   })
   if (resolutionResult.status === 'ambiguous_model') {
     throw new BillingOperationError(
@@ -457,7 +466,7 @@ export function calcVideo(
     unitPrice = applyVideoDurationScaling({
       amount: resolutionResult.amount,
       model,
-      selections,
+      selections: filteredSelections,
       hasDurationTier,
     })
   }
@@ -466,7 +475,7 @@ export function calcVideo(
     const customResolved = resolveCustomMediaPrice({
       apiType: 'video',
       model,
-      selections,
+      selections: filteredSelections,
       pricing: customPricing?.video,
     })
     if (customResolved.status === 'resolved') {
@@ -475,17 +484,17 @@ export function calcVideo(
       throw new BillingOperationError(
         'BILLING_CAPABILITY_PRICE_NOT_FOUND',
         `No custom video price matched for field ${customResolved.field}`,
-        { apiType: 'video', model, field: customResolved.field, selections },
+        { apiType: 'video', model, field: customResolved.field, selections: filteredSelections },
       )
     }
   }
 
   if (unitPrice === null) {
     if (resolutionResult.status === 'missing_capability_match') {
-      const pickedDuration = typeof selections.duration === 'number'
-        ? selections.duration
+      const pickedDuration = typeof filteredSelections.duration === 'number'
+        ? filteredSelections.duration
         : null
-      const pickedResolution = selections.resolution as string
+      const pickedResolution = filteredSelections.resolution as string
       if (pickedDuration !== null) {
         throw new BillingOperationError(
           'BILLING_UNKNOWN_VIDEO_CAPABILITY_COMBINATION',

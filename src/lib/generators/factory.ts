@@ -21,7 +21,7 @@ import { OpenAICompatibleVideoGenerator } from './video'
 import { QwenTTSGenerator } from './audio'
 import { MinimaxVideoGenerator } from './minimax'
 import { ViduVideoGenerator } from './vidu'
-import { RunningHubImageGenerator } from './runninghub'
+import { RunningHubImageGenerator, RunningHubVideoGenerator } from './runninghub'
 import { getProviderKey } from '@/lib/api-config'
 
 /**
@@ -82,6 +82,8 @@ export function createVideoGenerator(provider: string): VideoGenerator {
             return new MinimaxVideoGenerator()
         case 'vidu':
             return new ViduVideoGenerator()
+        case 'runninghub':
+            return new RunningHubVideoGenerator()
         case 'openai-compatible':
             return new OpenAICompatibleVideoGenerator(provider)
         default:
