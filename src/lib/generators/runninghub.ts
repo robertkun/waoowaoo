@@ -72,11 +72,36 @@ const RUNNINGHUB_MODEL_PATH_MAP: Record<string, string> = {
   'rhart-image-n-g31-flash-official': 'rhart-image-n-g31-flash-official',
   'rhart-image-n-g31-flash-image-to-image': 'rhart-image-n-g31-flash',
   'rhart-image-n-g31-flash-official-image-to-image': 'rhart-image-n-g31-flash-official',
+  'rhart-image-n-pro': 'rhart-image-n-pro',
+  'rhart-image-n-pro-image-to-image': 'rhart-image-n-pro',
+}
+
+/** 图生图使用 /edit 接口的 modelId（非 /image-to-image） */
+const RUNNINGHUB_IMAGE_EDIT_PATH_MAP: Record<string, string> = {
+  'rhart-image-n-pro-image-to-image': 'rhart-image-n-pro/edit',
+}
+
+/** 全能图片PRO 系列：aspectRatio 必填，允许值 */
+const RHART_IMAGE_N_PRO_ASPECT_RATIOS = new Set(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '16:9', '9:16', '21:9'])
+
+function normalizeAspectRatioForPro(raw?: string): string {
+  const s = (raw || '').trim()
+  if (RHART_IMAGE_N_PRO_ASPECT_RATIOS.has(s)) return s
+  return '3:2'
 }
 
 function getRunningHubModelPath(modelId?: string): string {
   const id = (modelId || '').trim()
   return RUNNINGHUB_MODEL_PATH_MAP[id] || 'rhart-image-n-g31-flash'
+}
+
+function getRunningHubImageEndpoint(modelId: string | undefined, hasReferenceImages: boolean): string {
+  const id = (modelId || '').trim()
+  if (hasReferenceImages && RUNNINGHUB_IMAGE_EDIT_PATH_MAP[id]) {
+    return RUNNINGHUB_IMAGE_EDIT_PATH_MAP[id]
+  }
+  const modelPath = getRunningHubModelPath(modelId)
+  return hasReferenceImages ? `${modelPath}/image-to-image` : `${modelPath}/text-to-image`
 }
 
 function normalizeResolution(raw?: string): string {
@@ -174,18 +199,14 @@ export class RunningHubImageGenerator extends BaseImageGenerator {
       modelId?: string
     }
 
-    const modelPath = getRunningHubModelPath(optionsModelId)
     const hasReferenceImages = imageUrls.length > 0
-    const endpoint = hasReferenceImages
-      ? `/openapi/v2/${modelPath}/image-to-image`
-      : `/openapi/v2/${modelPath}/text-to-image`
-
-    const createTaskUrl = `${RUNNINGHUB_BASE_URL}${endpoint}`
+    const endpointPath = getRunningHubImageEndpoint(optionsModelId, hasReferenceImages)
+    const createTaskUrl = `${RUNNINGHUB_BASE_URL}/openapi/v2/${endpointPath}`
     logger.info({
       message: 'RunningHub nanobanana 请求',
       details: {
         url: createTaskUrl,
-        endpoint,
+        endpoint: endpointPath,
         hasReferenceImages,
         resolution: resolution ?? null,
         aspectRatio: aspectRatio ?? null,
@@ -196,8 +217,12 @@ export class RunningHubImageGenerator extends BaseImageGenerator {
       prompt,
       resolution: normalizeResolution(resolution),
     }
-    if (aspectRatio != null && aspectRatio !== '') {
-      body.aspectRatio = aspectRatio
+    const modelId = (optionsModelId || '').trim()
+    const isProModel = modelId === 'rhart-image-n-pro' || modelId === 'rhart-image-n-pro-image-to-image'
+    if (isProModel) {
+      body.aspectRatio = normalizeAspectRatioForPro(aspectRatio)
+    } else if (aspectRatio != null && aspectRatio !== '') {
+      body.aspectRatio = aspectRatio.trim()
     }
     if (hasReferenceImages) {
       body.imageUrls = imageUrls

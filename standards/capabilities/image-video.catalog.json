@@ -491,6 +491,22 @@
     }
   },
   {
+    "modelType": "image",
+    "provider": "runninghub",
+    "modelId": "rhart-image-n-pro",
+    "capabilities": {
+      "image": {}
+    }
+  },
+  {
+    "modelType": "image",
+    "provider": "runninghub",
+    "modelId": "rhart-image-n-pro-image-to-image",
+    "capabilities": {
+      "image": {}
+    }
+  },
+  {
     "modelType": "video",
     "provider": "runninghub",
     "modelId": "rhart-video-s-official-image-to-video-realistic",

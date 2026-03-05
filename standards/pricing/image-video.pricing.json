@@ -435,6 +435,24 @@
     }
   },
   {
+    "apiType": "image",
+    "provider": "runninghub",
+    "modelId": "rhart-image-n-pro",
+    "pricing": {
+      "mode": "flat",
+      "flatAmount": 0.2
+    }
+  },
+  {
+    "apiType": "image",
+    "provider": "runninghub",
+    "modelId": "rhart-image-n-pro-image-to-image",
+    "pricing": {
+      "mode": "flat",
+      "flatAmount": 0.2
+    }
+  },
+  {
     "apiType": "video",
     "provider": "runninghub",
     "modelId": "rhart-video-s-official-image-to-video-realistic",

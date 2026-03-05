@@ -99,6 +99,8 @@ export const PRESET_MODELS: PresetModel[] = [
     { modelId: 'rhart-image-n-g31-flash-official', name: '全能图片V2-官方-文生图', type: 'image', provider: 'runninghub' },
     { modelId: 'rhart-image-n-g31-flash-image-to-image', name: '全能图片V2-图生图', type: 'image', provider: 'runninghub' },
     { modelId: 'rhart-image-n-g31-flash-official-image-to-image', name: '全能图片V2-官方-图生图', type: 'image', provider: 'runninghub' },
+    { modelId: 'rhart-image-n-pro', name: '全能图片PRO-文生图', type: 'image', provider: 'runninghub' },
+    { modelId: 'rhart-image-n-pro-image-to-image', name: '全能图片PRO-图生图', type: 'image', provider: 'runninghub' },
     { modelId: 'doubao-seedream-4-5-251128', name: 'Seedream 4.5', type: 'image', provider: 'ark' },
     { modelId: 'doubao-seedream-4-0-250828', name: 'Seedream 4.0', type: 'image', provider: 'ark' },
     { modelId: 'gemini-3-pro-image-preview', name: 'Banana Pro', type: 'image', provider: 'google' },

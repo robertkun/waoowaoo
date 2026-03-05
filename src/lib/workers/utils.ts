@@ -232,7 +232,24 @@ export async function resolveImageSourceFromGeneration(
     }),
   )
   if (!result.success) {
-    throw new Error(result.error || 'Image generation failed')
+    // 打出可能无效的链接，便于排查 "Invalid URL" 类错误
+    const detail: Record<string, unknown> = {
+      modelId: params.modelId,
+      referenceImageUrls: params.options?.referenceImages?.map((u) =>
+        typeof u === 'string' ? u.slice(0, 512) : String(u).slice(0, 512),
+      ),
+    }
+    if (result && typeof result === 'object') {
+      if ('imageUrl' in result && result.imageUrl) detail.resultImageUrl = String(result.imageUrl).slice(0, 512)
+      if ('videoUrl' in result && result.videoUrl) detail.resultVideoUrl = String(result.videoUrl).slice(0, 512)
+    }
+    logger.error({
+      message: 'image source generation failed',
+      error: result.error,
+      details: detail,
+    })
+    const errMsg = result.error || 'Image generation failed'
+    throw new Error(`${errMsg} | modelId=${params.modelId}`)
   }
 
   if (result.imageUrl) {
