@@ -145,12 +145,23 @@ export async function persistClips(params: {
 
   const createdClips: Array<{ id: string; clipKey: string }> = []
   for (const clip of params.clipList) {
+    // 将情绪强度和计划时长信息添加到 summary 中（格式：情绪强度|计划时长|原始摘要）
+    let enhancedSummary = clip.summary
+    if (clip.emotionIntensity || clip.plannedDuration) {
+      const emotionPart = clip.emotionIntensity || ''
+      const durationPart = clip.plannedDuration ? `${clip.plannedDuration}s` : ''
+      const metadata = [emotionPart, durationPart].filter(Boolean).join('|')
+      if (metadata) {
+        enhancedSummary = `[${metadata}] ${clip.summary}`
+      }
+    }
+    
     const created = await prisma.novelPromotionClip.create({
       data: {
         episodeId: params.episodeId,
         startText: clip.startText,
         endText: clip.endText,
-        summary: clip.summary,
+        summary: enhancedSummary,
         location: clip.location,
         characters: clip.characters.length > 0 ? JSON.stringify(clip.characters) : null,
         content: clip.content,

@@ -26,6 +26,8 @@ export type StoryToScriptClipCandidate = {
   content: string
   matchLevel: ClipMatchLevel
   matchConfidence: number
+  emotionIntensity?: '低' | '中' | '高' | '极高' | 'low' | 'medium' | 'high' | 'very_high'
+  plannedDuration?: number
 }
 
 export type StoryToScriptScreenplayResult = {
@@ -308,6 +310,31 @@ function toStringArray(value: unknown): string[] {
     .filter(Boolean)
 }
 
+function parseEmotionIntensity(value: unknown): '低' | '中' | '高' | '极高' | 'low' | 'medium' | 'high' | 'very_high' | undefined {
+  if (typeof value !== 'string') return undefined
+  const normalized = value.trim().toLowerCase()
+  // 中文
+  if (normalized === '低') return '低'
+  if (normalized === '中') return '中'
+  if (normalized === '高') return '高'
+  if (normalized === '极高') return '极高'
+  // 英文
+  if (normalized === 'low') return 'low'
+  if (normalized === 'medium') return 'medium'
+  if (normalized === 'high') return 'high'
+  if (normalized === 'very_high' || normalized === 'veryhigh') return 'very_high'
+  return undefined
+}
+
+function parsePlannedDuration(value: unknown): number | undefined {
+  if (typeof value === 'number' && value > 0) return Math.round(value)
+  if (typeof value === 'string') {
+    const parsed = Number.parseFloat(value.trim())
+    if (Number.isFinite(parsed) && parsed > 0) return Math.round(parsed)
+  }
+  return undefined
+}
+
 function toObjectArray(value: unknown): Record<string, unknown>[] {
   if (!Array.isArray(value)) return []
   return value.filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
@@ -571,6 +598,8 @@ export async function runStoryToScriptOrchestrator(
         content: content.slice(match.startIndex, match.endIndex),
         matchLevel: match.level,
         matchConfidence: match.confidence,
+        emotionIntensity: parseEmotionIntensity(item.emotionIntensity),
+        plannedDuration: parsePlannedDuration(item.plannedDuration),
       })
       searchFrom = match.endIndex
     }

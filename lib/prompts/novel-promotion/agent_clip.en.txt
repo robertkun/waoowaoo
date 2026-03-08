@@ -20,13 +20,31 @@ Output format (JSON array only):
     "end": "exact end snippet from source text (>=5 chars)",
     "summary": "short clip summary",
     "location": "best matched location name",
-    "characters": ["Character A", "Character B"]
+    "characters": ["Character A", "Character B"],
+    "emotionIntensity": "low|medium|high|very_high",
+    "plannedDuration": number (seconds, suggested value)
   }
 ]
+
+Emotion Intensity Analysis:
+When segmenting clips, analyze the emotional intensity of each segment to ensure emotional variation:
+- low: calm, setup, daily dialogue
+- medium: moderate tension, conflict begins
+- high: intense conflict, tension climax
+- very_high: extreme tension, life-or-death moments, emotional outbursts
+Emotional intensity should naturally vary according to plot development, forming an emotional arc.
+
+Planned Duration:
+Estimate suggested duration (seconds) based on content density and emotional intensity:
+- Low intensity: typically 8-12 seconds
+- Medium intensity: typically 10-15 seconds
+- High intensity: typically 12-18 seconds
+- Very high intensity: typically 10-15 seconds (faster pace)
 
 Rules:
 1. Keep clips contiguous, ordered, and fully covering the source text.
 2. Prefer natural scene/drama boundaries.
 3. Minimize over-splitting.
-4. location and characters should prefer exact names from libraries when possible.
-5. Return JSON only, no markdown or extra text.
+4. Analyze emotion intensity for each clip to create emotional variation.
+5. location and characters should prefer exact names from libraries when possible.
+6. Return JSON only, no markdown or extra text.
