@@ -635,53 +635,74 @@ export async function runStoryToScriptOrchestrator(
     throw lastBoundaryError || new Error('split_clips boundary matching failed')
   }
 
-  onLog?.('开始步骤3：对每个片段做剧本转换（并行）', { clipCount: clipList.length })
+  onLog?.('开始步骤3：对每个片段做剧本转换（并发限制：2）', { clipCount: clipList.length })
 
-  const screenplayResults = await Promise.all(
-    clipList.map(async (clip, index): Promise<StoryToScriptScreenplayResult> => {
-      const stepMeta: StoryToScriptStepMeta = {
-        stepId: `screenplay_${clip.id}`,
-        stepTitle: 'progress.streamStep.screenplayConversion',
-        stepIndex: index + 1,
-        stepTotal: clipList.length || 1,
-      }
+  // 分批处理，每批最多2个片段
+  const SCREENPLAY_CONCURRENCY = 2
+  const screenplayResults: StoryToScriptScreenplayResult[] = []
+  
+  for (let i = 0; i < clipList.length; i += SCREENPLAY_CONCURRENCY) {
+    const batch = clipList.slice(i, i + SCREENPLAY_CONCURRENCY)
+    const batchNumber = Math.floor(i / SCREENPLAY_CONCURRENCY) + 1
+    const totalBatches = Math.ceil(clipList.length / SCREENPLAY_CONCURRENCY)
+    
+    onLog?.(`处理第 ${batchNumber}/${totalBatches} 批片段 (${batch.length} 个)`, {
+      batchStart: i + 1,
+      batchEnd: Math.min(i + SCREENPLAY_CONCURRENCY, clipList.length),
+    })
 
-      try {
-        const screenplayPrompt = applyTemplate(promptTemplates.screenplayPromptTemplate, {
-          clip_content: clip.content,
-          locations_lib_name: locationsLibName || '无',
-          characters_lib_name: charactersLibName || '无',
-          characters_introduction: charactersIntroduction || '暂无角色介绍',
-          clip_id: clip.id,
-        })
-
-        const { parsed: screenplay } = await runStepWithRetry(
-          runStep,
-          stepMeta,
-          screenplayPrompt,
-          'screenplay_conversion',
-          2200,
-          parseScreenplayObject,
-        )
-        const scenes = Array.isArray(screenplay.scenes) ? screenplay.scenes : []
-        return {
-          clipId: clip.id,
-          success: true,
-          sceneCount: scenes.length,
-          screenplay,
+    const batchResults = await Promise.all(
+      batch.map(async (clip, batchIndex): Promise<StoryToScriptScreenplayResult> => {
+        const globalIndex = i + batchIndex
+        const stepMeta: StoryToScriptStepMeta = {
+          stepId: `screenplay_${clip.id}`,
+          stepTitle: 'progress.streamStep.screenplayConversion',
+          stepIndex: globalIndex + 1,
+          stepTotal: clipList.length || 1,
         }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        onStepError?.(stepMeta, message)
-        return {
-          clipId: clip.id,
-          success: false,
-          sceneCount: 0,
-          error: message,
+
+        try {
+          const screenplayPrompt = applyTemplate(promptTemplates.screenplayPromptTemplate, {
+            clip_content: clip.content,
+            locations_lib_name: locationsLibName || '无',
+            characters_lib_name: charactersLibName || '无',
+            characters_introduction: charactersIntroduction || '暂无角色介绍',
+            clip_id: clip.id,
+          })
+
+          const { parsed: screenplay } = await runStepWithRetry(
+            runStep,
+            stepMeta,
+            screenplayPrompt,
+            'screenplay_conversion',
+            2200,
+            parseScreenplayObject,
+          )
+          const scenes = Array.isArray(screenplay.scenes) ? screenplay.scenes : []
+          return {
+            clipId: clip.id,
+            success: true,
+            sceneCount: scenes.length,
+            screenplay,
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          onStepError?.(stepMeta, message)
+          return {
+            clipId: clip.id,
+            success: false,
+            sceneCount: 0,
+            error: message,
+          }
         }
-      }
-    }),
-  )
+      }),
+    )
+    
+    screenplayResults.push(...batchResults)
+    
+    const completed = Math.min(i + SCREENPLAY_CONCURRENCY, clipList.length)
+    onLog?.(`已完成 ${completed}/${clipList.length} 个片段的剧本转换`)
+  }
 
   const screenplaySuccessCount = screenplayResults.filter((item) => item.success).length
   const screenplayFailedCount = screenplayResults.length - screenplaySuccessCount
