@@ -218,7 +218,7 @@ export async function handleScriptToStoryboardTask(job: Job<TaskJobData>) {
                 key: 'script_to_storyboard_orchestrator',
                 title: 'script_to_storyboard_orchestrator',
                 maxAttempts: 2,
-                timeoutMs: 1000 * 60 * 20,
+                timeoutMs: 1000 * 60 * 60,
                 run: async (context) => {
                   const nextResult = await runScriptToStoryboardOrchestrator({
                     clips: clips.map((clip) => ({

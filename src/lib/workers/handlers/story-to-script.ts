@@ -219,7 +219,7 @@ export async function handleStoryToScriptTask(job: Job<TaskJobData>) {
                 key: 'story_to_script_orchestrator',
                 title: 'story_to_script_orchestrator',
                 maxAttempts: 2,
-                timeoutMs: 1000 * 60 * 15,
+                timeoutMs: 1000 * 60 * 30,
                 run: async (context) => {
                   const orchestratorResult = await runStoryToScriptOrchestrator({
                     content,

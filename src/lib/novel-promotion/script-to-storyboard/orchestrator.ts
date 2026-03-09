@@ -272,65 +272,112 @@ export async function runScriptToStoryboardOrchestrator(
 
   const phase1PanelsByClipId = new Map<string, StoryboardPanel[]>()
 
-  const phase1Results = await Promise.all(
-    clips.map(async (clip, i) => {
-      const clipIndex = i + 1
-      const clipContent = typeof clip.content === 'string' ? clip.content.trim() : ''
-      if (!clipContent) {
-        throw new Error(`Clip ${formatClipId(clip)} content is empty`)
-      }
-      const clipCharacters = parseClipCharacters(clip.characters)
-      const filteredAppearanceList = getFilteredAppearanceList(novelPromotionData.characters || [], clipCharacters)
-      const filteredFullDescription = getFilteredFullDescription(novelPromotionData.characters || [], clipCharacters)
-      const clipJson = JSON.stringify(
-        {
-          id: clip.id,
-          content: clipContent,
-          characters: clipCharacters,
-          location: clip.location || null,
-        },
-        null,
-        2,
-      )
+  // 分批处理 Phase 1，每批最多4个片段
+  const PHASE1_CONCURRENCY = 4
+  const phase1Results: Array<{ clipId: string; planPanels: StoryboardPanel[] }> = []
+  
+  for (let i = 0; i < clips.length; i += PHASE1_CONCURRENCY) {
+    const batch = clips.slice(i, i + PHASE1_CONCURRENCY)
+    const batchNumber = Math.floor(i / PHASE1_CONCURRENCY) + 1
+    const totalBatches = Math.ceil(clips.length / PHASE1_CONCURRENCY)
+    
+    orchestratorLogger.info({
+      action: 'orchestrator.phase1.batch',
+      message: `处理第 ${batchNumber}/${totalBatches} 批 Phase 1 分镜规划 (${batch.length} 个片段)`,
+      details: {
+        batchStart: i + 1,
+        batchEnd: Math.min(i + PHASE1_CONCURRENCY, clips.length),
+        totalClips: clips.length,
+      },
+    })
 
-      let phase1Prompt = promptTemplates.phase1PlanTemplate
-        .replace('{characters_lib_name}', charactersLibName)
-        .replace('{locations_lib_name}', locationsLibName)
-        .replace('{characters_introduction}', charactersIntroduction)
-        .replace('{characters_appearance_list}', filteredAppearanceList)
-        .replace('{characters_full_description}', filteredFullDescription)
-        .replace('{clip_json}', clipJson)
+    const batchResults = await Promise.all(
+      batch.map(async (clip, batchIndex) => {
+        const globalIndex = i + batchIndex
+        const clipIndex = globalIndex + 1
+        const clipContent = typeof clip.content === 'string' ? clip.content.trim() : ''
+        if (!clipContent) {
+          throw new Error(`Clip ${formatClipId(clip)} content is empty`)
+        }
+        const clipCharacters = parseClipCharacters(clip.characters)
+        const filteredAppearanceList = getFilteredAppearanceList(novelPromotionData.characters || [], clipCharacters)
+        const filteredFullDescription = getFilteredFullDescription(novelPromotionData.characters || [], clipCharacters)
+        const clipJson = JSON.stringify(
+          {
+            id: clip.id,
+            content: clipContent,
+            characters: clipCharacters,
+            location: clip.location || null,
+          },
+          null,
+          2,
+        )
 
-      const screenplay = parseScreenplay(clip.screenplay)
-      if (screenplay) {
-        phase1Prompt = phase1Prompt.replace('{clip_content}', `【剧本格式】\n${JSON.stringify(screenplay, null, 2)}`)
-      } else {
-        phase1Prompt = phase1Prompt.replace('{clip_content}', clipContent)
-      }
+        let phase1Prompt = promptTemplates.phase1PlanTemplate
+          .replace('{characters_lib_name}', charactersLibName)
+          .replace('{locations_lib_name}', locationsLibName)
+          .replace('{characters_introduction}', charactersIntroduction)
+          .replace('{characters_appearance_list}', filteredAppearanceList)
+          .replace('{characters_full_description}', filteredFullDescription)
+          .replace('{clip_json}', clipJson)
 
-      const phase1Meta = withStepMeta(
-        `clip_${clip.id}_phase1`,
-        'progress.streamStep.storyboardPlan',
-        clipIndex,
-        totalStepCount,
-      )
-      const { parsed: planPanels } = await runStepWithRetry(
-        runStep, phase1Meta, phase1Prompt, 'storyboard_phase1_plan', 2600,
-        (text) => {
-          const panels = parseJsonArray<StoryboardPanel>(text, `phase1:${formatClipId(clip)}`)
-          if (panels.length === 0) {
-            throw new Error(`Phase 1 returned empty panels for clip ${formatClipId(clip)}`)
-          }
-          return panels
-        },
-      )
+        const screenplay = parseScreenplay(clip.screenplay)
+        if (screenplay) {
+          phase1Prompt = phase1Prompt.replace('{clip_content}', `【剧本格式】\n${JSON.stringify(screenplay, null, 2)}`)
+        } else {
+          phase1Prompt = phase1Prompt.replace('{clip_content}', clipContent)
+        }
 
-      return {
-        clipId: clip.id,
-        planPanels,
-      }
-    }),
-  )
+        const phase1Meta = withStepMeta(
+          `clip_${clip.id}_phase1`,
+          'progress.streamStep.storyboardPlan',
+          clipIndex,
+          totalStepCount,
+        )
+        const { parsed: planPanels } = await runStepWithRetry(
+          runStep, phase1Meta, phase1Prompt, 'storyboard_phase1_plan', 2600,
+          (text) => {
+            const panels = parseJsonArray<StoryboardPanel>(text, `phase1:${formatClipId(clip)}`)
+            if (panels.length === 0) {
+              throw new Error(`Phase 1 returned empty panels for clip ${formatClipId(clip)}`)
+            }
+            // 限制每个片段最多10个分镜
+            const MAX_PANELS_PER_CLIP = 10
+            if (panels.length > MAX_PANELS_PER_CLIP) {
+              orchestratorLogger.warn({
+                action: 'orchestrator.phase1.panel_limit',
+                message: `Clip ${formatClipId(clip)} generated ${panels.length} panels, truncating to ${MAX_PANELS_PER_CLIP}`,
+                details: {
+                  clipId: clip.id,
+                  originalCount: panels.length,
+                  truncatedCount: MAX_PANELS_PER_CLIP,
+                },
+              })
+              return panels.slice(0, MAX_PANELS_PER_CLIP)
+            }
+            return panels
+          },
+        )
+
+        return {
+          clipId: clip.id,
+          planPanels,
+        }
+      }),
+    )
+    
+    phase1Results.push(...batchResults)
+    
+    const completed = Math.min(i + PHASE1_CONCURRENCY, clips.length)
+    orchestratorLogger.info({
+      action: 'orchestrator.phase1.batch.complete',
+      message: `Phase 1 分镜规划已完成 ${completed}/${clips.length} 个片段`,
+      details: {
+        completed,
+        total: clips.length,
+      },
+    })
+  }
 
   for (const result of phase1Results) {
     phase1PanelsByClipId.set(result.clipId, result.planPanels)

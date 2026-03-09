@@ -26,20 +26,11 @@ Output format (JSON array only):
   }
 ]
 
-Emotion Intensity Analysis:
-When segmenting clips, analyze the emotional intensity of each segment to ensure emotional variation:
-- low: calm, setup, daily dialogue
-- medium: moderate tension, conflict begins
-- high: intense conflict, tension climax
-- very_high: extreme tension, life-or-death moments, emotional outbursts
-Emotional intensity should naturally vary according to plot development, forming an emotional arc.
+Emotion Intensity:
+Analyze each clip's intensity: low (calm/daily), medium (moderate tension), high (intense conflict), very_high (life-or-death/emotional outburst). Ensure variation.
 
 Planned Duration:
-Estimate suggested duration (seconds) based on content density and emotional intensity:
-- Low intensity: typically 8-12 seconds
-- Medium intensity: typically 10-15 seconds
-- High intensity: typically 12-18 seconds
-- Very high intensity: typically 10-15 seconds (faster pace)
+Estimate seconds based on density: low 8-12s, medium 10-15s, high 12-18s, very_high 10-15s.
 
 Rules:
 1. Keep clips contiguous, ordered, and fully covering the source text.
